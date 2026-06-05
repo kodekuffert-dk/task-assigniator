@@ -1,0 +1,49 @@
+﻿{
+  "audit_version": 1,
+  "mode": "reassign",
+  "generated_at_utc": "2026-06-05T07:56:22.497322+00:00",
+  "input": {
+    "csv_file": "reexam_students.csv",
+    "csv_sha256": "ee7157d7071cee4b8b3683373712fd57413ce8b93b914cb6d2b13cd5e0bf7dde",
+    "tasks_folder": "tasks",
+    "task_files_sha256": {
+      "A.txt": "72232b3ed20a569ae9977cc87b8df9472837071447bc4feba9a83df0f6d8e29b",
+      "B.txt": "2c23f995f5ac34cbd22977c1e5575ffaea7b1eb572c3362cc2c5810cbc52a336",
+      "C.txt": "6f96fecc106f87aa027340fabe9aea78781d3ae99d8493ead68ed0cfbfbfde5a"
+    }
+  },
+  "output": {
+    "assigned_tasks_html_file": "reassigned_tasks.html",
+    "assigned_tasks_html_sha256": "7ef739cb925b7ab13de50a02943e45928c5723b4938594bca937fbe1f7ba61fe",
+    "audit_file": "reassigned_tasks_audit.json"
+  },
+  "summary": {
+    "student_count": 2,
+    "task_count": 3,
+    "assignment_count_per_task": {
+      "A.txt": 1,
+      "B.txt": 1,
+      "C.txt": 0
+    },
+    "assignment_list_sha256": "a00508cb8e976832d40f0127545f649f5e05d7c781c05091a8ef98e5eb9a242a",
+    "student_number_hash_algorithm": "sha256"
+  },
+  "assignments": [
+    {
+      "student_number_sha256": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce",
+      "student_name": "Cara",
+      "assigned_task": "B.txt"
+    },
+    {
+      "student_number_sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+      "student_name": "Alice",
+      "assigned_task": "A.txt"
+    }
+  ],
+  "source_assignment": {
+    "audit_file": "assigned_tasks_audit.json",
+    "audit_file_sha256": "90b614debf3d42e91a2d9329c5212d004b971bc6add4ddee6d28697655b4d90f",
+    "assignment_list_sha256": "5c01a3bb96fe87081e4982fe0ca2463ab9df9837e2a8fc2976a0ce7dc1a00af4"
+  },
+  "audit_hmac_sha256": "2ba11eaf13a64f0c20106a408198037fc5acc7beeb1c98ed4b32b4c53bda84ad"
+}

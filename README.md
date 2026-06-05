@@ -6,6 +6,7 @@ Scriptet:
 - læser studerende fra en semikolon-separeret CSV,
 - læser opgavefiler fra en mappe,
 - fordeler opgaver i runder (alle opgaver bruges én gang, før genbrug),
+- kan lave nytildeling til reeksamen ud fra den oprindelige audit-fil,
 - genererer en HTML-oversigt,
 - opretter en audit-log med signatur,
 - kan verificere audit-filen bagefter.
@@ -103,6 +104,26 @@ python task-assigniator.py students.csv tasks
 python task-assigniator.py verify tasks
 ```
 
+Du kan også verificere en bestemt audit-fil direkte, f.eks. ved nytildeling:
+
+```powershell
+python task-assigniator.py verify tasks\reassigned_tasks_audit.json
+```
+
+### 3) Tildel nye opgaver til reeksamen
+
+Brug en ny CSV med de studerende, der skal have en ny opgave, samt audit-filen fra den oprindelige tildeling:
+
+```powershell
+python task-assigniator.py reassign reexam_students.csv tasks tasks\assigned_tasks_audit.json
+```
+
+I denne tilstand:
+- opgavepuljen skal være den samme som ved den oprindelige tildeling,
+- audit-filen fra første kørsel verificeres først,
+- hver studerende får en ny opgave fra samme pulje,
+- ingen studerende kan få den samme opgave, som de allerede har haft.
+
 Ved succes returneres en OK-meddelelse. Ved fejl returneres FAILED og exit-kode 2.
 
 ## Output
@@ -115,6 +136,15 @@ Scriptet opretter følgende i opgavemappen:
 	- audit-oplysninger om input, output og tildelinger
 	- indeholder HMAC-SHA256 signaturfelt
 - assigned_tasks_audit.sig
+	- signaturen i separat fil
+
+Ved `reassign` oprettes i stedet:
+
+- reassigned_tasks.html
+	- HTML-tabel med nytildelingen
+- reassigned_tasks_audit.json
+	- audit-oplysninger om input, output, den nye tildeling og reference til den oprindelige audit-fil
+- reassigned_tasks_audit.sig
 	- signaturen i separat fil
 
 ## Sikkerhed og sporbarhed

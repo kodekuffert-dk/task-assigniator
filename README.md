@@ -16,6 +16,10 @@ Scriptet:
 - Python 3.9+ (anbefalet)
 - Ingen eksterne pakker kræves
 
+Til web-versionen:
+- Flask og gunicorn (installeres via requirements.txt)
+- Docker (hvis du vil kore i container)
+
 ## Forventet struktur
 
 Eksempel:
@@ -173,3 +177,70 @@ Ved `reassign` oprettes i stedet:
 5. Kør verify.
 
 Hvis verify er OK, er audit-filen ikke blevet ændret siden generering.
+
+## Web-app (Flask)
+
+Der er tilfojet en Flask-app i filen `app.py`, som genbruger den eksisterende logik i `task-assigniator.py`.
+
+Web-app'en giver dig:
+- upload af CSV til `assign` eller `reassign`
+- upload af original audit-fil ved `reassign`
+- valgfri upload af tasks som `.zip` (erstatter nuvaerende taskfiler)
+- download af genererede outputfiler direkte i browseren
+
+### Kør lokalt
+
+PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+$env:TASK_ASSIGNMENT_AUDIT_KEY = "din-hemmelige-noegle"
+python app.py
+```
+
+Åbn herefter:
+
+```text
+http://localhost:8000
+```
+
+Generer filer via formularen og hent dem via Download-sektionen.
+
+### Upload af tasks som ZIP (sikkerhed)
+
+Ja, det kan gores sikkert, hvis man validerer ZIP-indholdet. Web-app'en validerer nu:
+- filtypen skal vaere `.zip`
+- max ZIP-storrelse: 20 MB
+- max antal filer: 500
+- blokerer usikre stier (fx `../` og absolute stier)
+- gemmer kun filer med sikre filnavne
+- overskriver eksisterende taskfiler (ikke output/audit-filer)
+
+Det reducerer risikoen markant. Som ekstra praksis bor du stadig kun acceptere ZIP-filer fra kilder, du stoler pa.
+
+## Kør i Docker container
+
+Byg image:
+
+```powershell
+docker build -t task-assigniator-web .
+```
+
+Start container:
+
+```powershell
+docker run --rm -p 8000:8000 -e TASK_ASSIGNMENT_AUDIT_KEY="din-hemmelige-noegle" task-assigniator-web
+```
+
+Åbn:
+
+```text
+http://localhost:8000
+```
+
+Bemærk:
+- Appen forventer en `tasks/` mappe i containeren med opgavefiler.
+- Download links henter filer fra `tasks/` (fx `assigned_tasks.html`, `assigned_tasks_audit.json`, `assigned_tasks_audit.sig`).

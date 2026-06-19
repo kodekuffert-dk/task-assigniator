@@ -5,7 +5,8 @@ import uuid
 import zipfile
 from pathlib import Path
 
-from flask import Flask, abort, flash, redirect, render_template_string, request, send_from_directory, url_for
+from flask import Flask, jsonify, request, send_from_directory
+from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -20,235 +21,6 @@ ALLOWED_DOWNLOADS = {
 }
 MAX_TASKS_ZIP_SIZE_BYTES = 20 * 1024 * 1024
 MAX_TASKS_FILE_COUNT = 500
-
-TEMPLATE = """
-<!doctype html>
-<html lang="da">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Task Assigniator Web</title>
-  <style>
-    :root {
-      --bg: #f8f6f2;
-      --card: #fffdf9;
-      --text: #1f2a32;
-      --muted: #5f6b73;
-      --primary: #0f766e;
-      --primary-strong: #115e59;
-      --danger: #b42318;
-      --border: #d9d2c7;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: Georgia, "Times New Roman", serif;
-      color: var(--text);
-      background:
-        radial-gradient(circle at 10% 20%, #f4e8d4 0, transparent 40%),
-        radial-gradient(circle at 90% 80%, #d9efe8 0, transparent 35%),
-        var(--bg);
-      min-height: 100vh;
-    }
-
-    .page {
-      max-width: 980px;
-      margin: 28px auto;
-      padding: 0 18px 30px;
-    }
-
-    .hero {
-      background: linear-gradient(140deg, #153747 0%, #0f766e 70%);
-      color: #fff;
-      border-radius: 16px;
-      padding: 22px 24px;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
-      animation: reveal 450ms ease-out;
-    }
-
-    .hero h1 {
-      margin: 0;
-      letter-spacing: 0.4px;
-      font-size: 2rem;
-    }
-
-    .hero p {
-      margin: 8px 0 0;
-      color: #d8f6ef;
-    }
-
-    .grid {
-      margin-top: 18px;
-      display: grid;
-      gap: 16px;
-      grid-template-columns: 1fr;
-    }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px;
-      box-shadow: 0 7px 18px rgba(33, 33, 33, 0.07);
-      animation: reveal 550ms ease-out;
-    }
-
-    h2 {
-      margin: 0 0 12px;
-      font-size: 1.3rem;
-    }
-
-    label {
-      display: block;
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 0.92rem;
-    }
-
-    input[type="file"],
-    select {
-      width: 100%;
-      margin-top: 6px;
-      padding: 8px;
-      border: 1px solid #b8b0a4;
-      border-radius: 8px;
-      background: #fff;
-    }
-
-    button {
-      margin-top: 14px;
-      background: var(--primary);
-      color: #fff;
-      border: 0;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: transform 120ms ease, background 120ms ease;
-    }
-
-    button:hover {
-      transform: translateY(-1px);
-      background: var(--primary-strong);
-    }
-
-    .notes {
-      margin: 0;
-      padding-left: 18px;
-      color: var(--muted);
-    }
-
-    .files {
-      margin-top: 10px;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 8px;
-    }
-
-    .file-link {
-      display: inline-block;
-      text-decoration: none;
-      background: #fff7ed;
-      color: #9a3412;
-      border: 1px solid #fed7aa;
-      padding: 9px 10px;
-      border-radius: 9px;
-      font-weight: 600;
-    }
-
-    .flash {
-      margin: 10px 0 0;
-      padding: 9px 10px;
-      border-radius: 8px;
-      border: 1px solid;
-    }
-
-    .flash.error {
-      color: var(--danger);
-      border-color: #f7b4ae;
-      background: #fef3f2;
-    }
-
-    .flash.success {
-      color: #14532d;
-      border-color: #bbf7d0;
-      background: #f0fdf4;
-    }
-
-    @keyframes reveal {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @media (min-width: 900px) {
-      .grid {
-        grid-template-columns: 1.2fr 0.8fr;
-      }
-    }
-  </style>
-</head>
-<body>
-  <main class="page">
-    <section class="hero">
-      <h1>Task Assigniator Web</h1>
-      <p>Run assignment and re-assignment in browser and download output files directly.</p>
-    </section>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="flash {{ category }}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    <section class="grid">
-      <article class="card">
-        <h2>Generate output</h2>
-        <form method="post" action="{{ url_for('run_assignment') }}" enctype="multipart/form-data">
-          <label for="mode">Mode</label>
-          <select id="mode" name="mode" required>
-            <option value="assign">assign (first assignment)</option>
-            <option value="reassign">reassign (new assignment)</option>
-          </select>
-
-          <label for="students_csv">Students CSV</label>
-          <input id="students_csv" name="students_csv" type="file" accept=".csv" required>
-
-          <label for="source_audit">Original audit JSON (reassign only)</label>
-          <input id="source_audit" name="source_audit" type="file" accept=".json">
-
-          <label for="tasks_zip">Tasks ZIP (optional, replaces current task files)</label>
-          <input id="tasks_zip" name="tasks_zip" type="file" accept=".zip">
-
-          <button type="submit">Run</button>
-        </form>
-      </article>
-
-      <article class="card">
-        <h2>Downloads</h2>
-        <p style="margin-top: 0; color: var(--muted);">These files update after each run:</p>
-        <div class="files">
-          {% for filename in downloadable_files %}
-            <a class="file-link" href="{{ url_for('download', filename=filename) }}">{{ filename }}</a>
-          {% endfor %}
-        </div>
-      </article>
-    </section>
-
-    <section class="card" style="margin-top: 16px;">
-      <h2>Requirements</h2>
-      <ul class="notes">
-        <li>Set TASK_ASSIGNMENT_AUDIT_KEY in app/container environment.</li>
-        <li>Task files must exist in tasks/ folder or folder from TASKS_DIR.</li>
-      </ul>
-    </section>
-  </main>
-</body>
-</html>
-"""
 
 
 def load_assignment_module():
@@ -265,7 +37,11 @@ def load_assignment_module():
 assignment_module = load_assignment_module()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
+
+
+@app.errorhandler(HTTPException)
+def handle_http_exception(error):
+    return jsonify({"error": error.description}), error.code
 
 
 def save_upload(file_storage, suffix):
@@ -321,8 +97,7 @@ def extract_tasks_zip(zip_path, tasks_dir):
                 continue
 
             destination = tasks_dir / safe_name
-            destination_resolved = destination.resolve()
-            if destination_resolved.parent != tasks_dir.resolve():
+            if destination.resolve().parent != tasks_dir.resolve():
                 raise ValueError("Tasks ZIP contains unsafe destination paths.")
 
             data = archive.read(member)
@@ -337,86 +112,168 @@ def extract_tasks_zip(zip_path, tasks_dir):
     if extracted_count == 0:
         raise ValueError("Tasks ZIP did not contain usable task files.")
 
+    return extracted_count
 
-@app.get("/")
-def index():
-    existing_files = [
-        filename for filename in sorted(ALLOWED_DOWNLOADS)
+
+def apply_tasks_zip_upload():
+    """Extract tasks ZIP from the current request if provided. Returns error response or None."""
+    tasks_zip_file = request.files.get("tasks_zip")
+    if not tasks_zip_file or not tasks_zip_file.filename:
+        return None
+
+    if not tasks_zip_file.filename.lower().endswith(".zip"):
+        return jsonify({"error": "tasks_zip must be a .zip file."}), 422
+
+    tasks_zip_path = save_upload(tasks_zip_file, ".zip")
+    try:
+        count = extract_tasks_zip(tasks_zip_path, TASKS_DIR)
+    except (ValueError, zipfile.BadZipFile) as error:
+        return jsonify({"error": f"Invalid tasks ZIP: {error}"}), 422
+
+    return count
+
+
+def file_download_urls():
+    return {
+        filename: f"/files/{filename}"
+        for filename in sorted(ALLOWED_DOWNLOADS)
         if (TASKS_DIR / filename).exists()
+    }
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/health")
+def health():
+    """Liveness probe for container orchestration."""
+    return jsonify({"status": "ok"})
+
+
+@app.post("/tasks")
+def upload_tasks():
+    """
+    Replace the current task files with the contents of a ZIP archive.
+
+    multipart/form-data fields:
+      tasks_zip  (file, required)  ZIP archive containing task files.
+    """
+    tasks_zip_file = request.files.get("tasks_zip")
+    if not tasks_zip_file or not tasks_zip_file.filename:
+        return jsonify({"error": "tasks_zip file is required."}), 422
+
+    if not tasks_zip_file.filename.lower().endswith(".zip"):
+        return jsonify({"error": "tasks_zip must be a .zip file."}), 422
+
+    tasks_zip_path = save_upload(tasks_zip_file, ".zip")
+    try:
+        count = extract_tasks_zip(tasks_zip_path, TASKS_DIR)
+    except (ValueError, zipfile.BadZipFile) as error:
+        return jsonify({"error": str(error)}), 422
+
+    task_files = [
+        path.name for path in sorted(TASKS_DIR.iterdir())
+        if path.is_file() and path.name not in ALLOWED_DOWNLOADS
     ]
-    return render_template_string(TEMPLATE, downloadable_files=existing_files)
+    return jsonify({"message": f"Extracted {count} task file(s).", "task_files": task_files}), 200
 
 
-@app.post("/run")
-def run_assignment():
+@app.post("/assignments")
+def create_assignment():
+    """
+    Assign tasks to students and return download links for the generated files.
+
+    multipart/form-data fields:
+      students_csv  (file, required)  Semicolon-separated CSV with student data.
+      tasks_zip     (file, optional)  ZIP archive that replaces current task files first.
+    """
     if not TASKS_DIR.exists() or not TASKS_DIR.is_dir():
-        flash(f"Tasks folder not found: {TASKS_DIR}", "error")
-        return redirect(url_for("index"))
+        return jsonify({"error": f"Tasks folder not found: {TASKS_DIR}"}), 500
 
     students_file = request.files.get("students_csv")
-    if students_file is None or not students_file.filename:
-        flash("Choose a students CSV file.", "error")
-        return redirect(url_for("index"))
-
-    mode = request.form.get("mode", "assign").strip().lower()
-    if mode not in {"assign", "reassign"}:
-        flash("Invalid mode.", "error")
-        return redirect(url_for("index"))
-
+    if not students_file or not students_file.filename:
+        return jsonify({"error": "students_csv file is required."}), 422
     if not students_file.filename.lower().endswith(".csv"):
-        flash("Students file must be .csv", "error")
-        return redirect(url_for("index"))
+        return jsonify({"error": "students_csv must be a .csv file."}), 422
 
-    tasks_zip_file = request.files.get("tasks_zip")
-    if tasks_zip_file and tasks_zip_file.filename:
-      if not tasks_zip_file.filename.lower().endswith(".zip"):
-        flash("Tasks ZIP file must be .zip", "error")
-        return redirect(url_for("index"))
-
-      tasks_zip_path = save_upload(tasks_zip_file, ".zip")
-      try:
-        extract_tasks_zip(tasks_zip_path, TASKS_DIR)
-      except (ValueError, zipfile.BadZipFile) as error:
-        flash(f"Invalid tasks ZIP: {error}", "error")
-        return redirect(url_for("index"))
+    zip_result = apply_tasks_zip_upload()
+    if isinstance(zip_result, tuple):
+        return zip_result
 
     students_csv_path = save_upload(students_file, ".csv")
-
     try:
-        if mode == "assign":
-            assignment_module.assign_tasks(str(students_csv_path), str(TASKS_DIR))
-            flash("Assign completed. Files are ready for download.", "success")
-        else:
-            source_audit_file = request.files.get("source_audit")
-            if source_audit_file is None or not source_audit_file.filename:
-                flash("Upload original audit JSON for reassign.", "error")
-                return redirect(url_for("index"))
-            if not source_audit_file.filename.lower().endswith(".json"):
-                flash("Audit file must be .json", "error")
-                return redirect(url_for("index"))
-
-            source_audit_path = save_upload(source_audit_file, ".json")
-            assignment_module.reassign_tasks(
-                str(students_csv_path),
-                str(TASKS_DIR),
-                str(source_audit_path),
-            )
-            flash("Reassign completed. Files are ready for download.", "success")
-
+        assignment_module.assign_tasks(str(students_csv_path), str(TASKS_DIR))
     except ValueError as error:
-        flash(str(error), "error")
+        return jsonify({"error": str(error)}), 422
 
-    return redirect(url_for("index"))
+    return jsonify({
+        "message": "Assignment completed.",
+        "files": file_download_urls(),
+    }), 200
 
 
-@app.get("/download/<path:filename>")
-def download(filename):
+@app.post("/reassignments")
+def create_reassignment():
+    """
+    Reassign tasks for re-exam students and return download links.
+
+    multipart/form-data fields:
+      students_csv   (file, required)  CSV with the students receiving new tasks.
+      source_audit   (file, required)  Audit JSON from the original assignment run.
+      tasks_zip      (file, optional)  ZIP archive that replaces current task files first.
+    """
+    if not TASKS_DIR.exists() or not TASKS_DIR.is_dir():
+        return jsonify({"error": f"Tasks folder not found: {TASKS_DIR}"}), 500
+
+    students_file = request.files.get("students_csv")
+    if not students_file or not students_file.filename:
+        return jsonify({"error": "students_csv file is required."}), 422
+    if not students_file.filename.lower().endswith(".csv"):
+        return jsonify({"error": "students_csv must be a .csv file."}), 422
+
+    source_audit_file = request.files.get("source_audit")
+    if not source_audit_file or not source_audit_file.filename:
+        return jsonify({"error": "source_audit file is required."}), 422
+    if not source_audit_file.filename.lower().endswith(".json"):
+        return jsonify({"error": "source_audit must be a .json file."}), 422
+
+    zip_result = apply_tasks_zip_upload()
+    if isinstance(zip_result, tuple):
+        return zip_result
+
+    students_csv_path = save_upload(students_file, ".csv")
+    source_audit_path = save_upload(source_audit_file, ".json")
+    try:
+        assignment_module.reassign_tasks(
+            str(students_csv_path),
+            str(TASKS_DIR),
+            str(source_audit_path),
+        )
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 422
+
+    return jsonify({
+        "message": "Reassignment completed.",
+        "files": file_download_urls(),
+    }), 200
+
+
+@app.get("/files")
+def list_files():
+    """List all generated output files that are available for download."""
+    return jsonify({"files": file_download_urls()}), 200
+
+
+@app.get("/files/<path:filename>")
+def download_file(filename):
+    """Download a specific generated output file."""
     if filename not in ALLOWED_DOWNLOADS:
-        abort(404)
+        return jsonify({"error": "File not found."}), 404
 
     file_path = TASKS_DIR / filename
     if not file_path.exists() or not file_path.is_file():
-        abort(404)
+        return jsonify({"error": "File not found."}), 404
 
     return send_from_directory(TASKS_DIR, filename, as_attachment=True)
 

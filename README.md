@@ -180,21 +180,22 @@ Hvis verify er OK, er audit-filen ikke blevet ændret siden generering.
 
 ## Web-app (Flask)
 
-Der er tilfojet en Flask-app i filen `app.py`, som genbruger den eksisterende logik i `task-assigniator.py`.
+Der er tilfojet en Flask REST API i filen `app.py`, som genbruger den eksisterende logik i `task-assigniator.py`.
 
-Web-app'en giver dig:
-- upload af CSV til `assign` eller `reassign`
-- upload af original audit-fil ved `reassign`
-- valgfri upload af tasks som `.zip` (erstatter nuvaerende taskfiler)
-- download af genererede outputfiler direkte i browseren
+API'en giver dig:
+- `POST /tasks` — upload af tasks som `.zip` (erstatter nuvaerende taskfiler)
+- `POST /assignments` — upload af CSV (+ evt. zip), korer assign
+- `POST /reassignments` — upload af CSV + audit JSON (+ evt. zip), korer reassign
+- `GET /files` — list tilgaengelige outputfiler med download-links
+- `GET /files/<filnavn>` — download en specifik outputfil
+- `GET /health` — liveness probe til container orchestration
 
 ### Kør lokalt
 
 PowerShell:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
 $env:TASK_ASSIGNMENT_AUDIT_KEY = "din-hemmelige-noegle"
@@ -207,7 +208,21 @@ python app.py
 http://localhost:8000
 ```
 
-Generer filer via formularen og hent dem via Download-sektionen.
+Kald herefter API'et, fx med curl:
+
+```sh
+# Upload tasks
+curl -F "tasks_zip=@tasks.zip" http://localhost:8000/tasks
+
+# Tildel opgaver
+curl -F "students_csv=@students.csv" http://localhost:8000/assignments
+
+# List outputfiler
+curl http://localhost:8000/files
+
+# Download
+curl -OJ http://localhost:8000/files/assigned_tasks.html
+```
 
 ### Upload af tasks som ZIP (sikkerhed)
 
